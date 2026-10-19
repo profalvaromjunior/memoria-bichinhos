@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Memória dos Bichinhos</title>
+<meta name="description" content="Jogo da memória de animais para o Maternal e Infantil — Prof. Álvaro Machado Júnior">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐶</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg1:#bdeaff; --bg2:#fff6c9; --ink:#3a2d6b;
+    --back1:#ff8fb1; --back2:#ffb86b; --face:#ffffff;
+    --ok:#7ed957; --shadow:0 6px 0 rgba(58,45,107,.18);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+  html,body{margin:0;height:100%}
+  body{
+    font-family:'Baloo 2',system-ui,sans-serif;color:var(--ink);
+    background:linear-gradient(180deg,var(--bg1),var(--bg2));
+    display:flex;flex-direction:column;align-items:center;min-height:100vh;
+    overflow-x:hidden;
+  }
+  header{width:100%;max-width:1100px;padding:12px 16px 4px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  h1{margin:0;font-size:clamp(1.5rem,4.5vw,2.6rem);font-weight:800;letter-spacing:.5px;text-shadow:0 3px 0 #fff}
+  .info{display:flex;gap:10px;align-items:center}
+  .pill{background:#fff;border-radius:999px;padding:6px 16px;font-size:clamp(1rem,2.6vw,1.4rem);box-shadow:var(--shadow);white-space:nowrap}
+  button.btn{
+    font:inherit;font-size:clamp(1rem,2.6vw,1.4rem);border:none;border-radius:999px;
+    padding:8px 20px;background:#ffd23f;color:var(--ink);box-shadow:var(--shadow);cursor:pointer
+  }
+  button.btn:active{transform:translateY(4px);box-shadow:0 2px 0 rgba(58,45,107,.18)}
+  main{flex:1;width:100%;max-width:1100px;padding:8px 16px 16px;display:flex;align-items:center;justify-content:center}
+  .board{
+    display:grid;gap:clamp(8px,1.6vw,16px);width:100%;
+    grid-template-columns:repeat(6,1fr);
+  }
+  @media (orientation:portrait){ .board{grid-template-columns:repeat(4,1fr)} }
+  .card{perspective:800px;aspect-ratio:1/1;cursor:pointer;border:none;padding:0;background:none}
+  .inner{position:relative;width:100%;height:100%;transition:transform .45s cubic-bezier(.3,1.4,.6,1);transform-style:preserve-3d}
+  .card.flip .inner,.card.done .inner{transform:rotateY(180deg)}
+  .side{position:absolute;inset:0;border-radius:22%;backface-visibility:hidden;-webkit-backface-visibility:hidden;display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow)}
+  .back{
+    background:radial-gradient(circle at 30% 30%,#fff7 0 18%,transparent 19%),linear-gradient(135deg,var(--back1),var(--back2));
+    border:5px solid #fff;font-size:clamp(1.6rem,5vw,3rem);color:#fff
+  }
+  .face{background:var(--face);transform:rotateY(180deg);border:5px solid #ffe08a;font-size:clamp(2.2rem,8vw,5rem)}
+  .card.done .face{border-color:var(--ok);animation:pop .5s}
+  .card.miss .face{animation:shake .4s}
+  @keyframes pop{50%{transform:rotateY(180deg) scale(1.12)}}
+  @keyframes shake{25%{transform:rotateY(180deg) translateX(-6px)}75%{transform:rotateY(180deg) translateX(6px)}}
+  footer{font-size:.95rem;padding:4px 16px 12px;opacity:.75;text-align:center}
+  .win{position:fixed;inset:0;background:#3a2d6bcc;display:none;align-items:center;justify-content:center;z-index:5;padding:16px}
+  .win.show{display:flex}
+  .win-box{background:#fff;border-radius:32px;padding:28px 32px;text-align:center;max-width:460px;box-shadow:0 10px 0 #0002;animation:pop2 .5s}
+  .win-box h2{margin:0;font-size:clamp(2rem,7vw,3rem)}
+  .win-box .big{font-size:clamp(3rem,12vw,5rem);line-height:1.2}
+  @keyframes pop2{from{transform:scale(.5)}to{transform:scale(1)}}
+  .confetti{position:fixed;top:-40px;font-size:2rem;z-index:6;pointer-events:none;animation:fall linear forwards}
+  @keyframes fall{to{transform:translateY(110vh) rotate(540deg)}}
+</style>
+</head>
+<body>
+<header>
+  <h1>🐾 Memória dos Bichinhos</h1>
+  <div class="info">
+    <span class="pill">⭐ <span id="pares">0</span>/12</span>
+    <button class="btn" id="som" aria-label="Ligar ou desligar som">🔊</button>
+    <button class="btn" id="novo">🔄 Novo jogo</button>
+  </div>
+</header>
+<main><div class="board" id="board"></div></main>
+<footer>Prof. Álvaro Machado Júnior · Maternal e Infantil</footer>
+
+<div class="win" id="win">
+  <div class="win-box">
+    <div class="big">🎉🏆🎉</div>
+    <h2>Parabéns!</h2>
+    <p style="font-size:1.3rem;margin:.4em 0 1em">Você achou todos os bichinhos!</p>
+    <button class="btn" id="denovo">Jogar de novo</button>
+  </div>
+</div>
+
+<script>
+const ANIMAIS = [
+  ["🐶","cachorro"],["🐱","gato"],["🐮","vaca"],["🐷","porco"],
+  ["🐸","sapo"],["🦁","leão"],["🐵","macaco"],["🐰","coelho"],
+  ["🐻","urso"],["🐔","galinha"],["🐴","cavalo"],["🐘","elefante"]
+];
+const board=document.getElementById('board');
+const paresEl=document.getElementById('pares');
+const win=document.getElementById('win');
+let primeira=null, travado=false, pares=0, somLigado=true;
+
+/* ---------- sons ---------- */
+let ctx=null;
+function tom(freqs,dur=.12,tipo='sine'){
+  if(!somLigado) return;
+  try{
+    ctx = ctx || new (window.AudioContext||window.webkitAudioContext)();
+    freqs.forEach((f,i)=>{
+      const o=ctx.createOscillator(), g=ctx.createGain();
+      o.type=tipo; o.frequency.value=f;
+      const t=ctx.currentTime+i*dur;
+      g.gain.setValueAtTime(.0001,t);
+      g.gain.exponentialRampToValueAtTime(.25,t+.02);
+      g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+      o.connect(g).connect(ctx.destination); o.start(t); o.stop(t+dur+.02);
+    });
+  }catch(e){}
+}
+function falar(txt){
+  if(!somLigado || !('speechSynthesis' in window)) return;
+  try{
+    speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(txt);
+    u.lang='pt-BR'; u.rate=.85; u.pitch=1.3;
+    const v=speechSynthesis.getVoices().find(v=>v.lang&&v.lang.toLowerCase().startsWith('pt'));
+    if(v) u.voice=v;
+    speechSynthesis.speak(u);
+  }catch(e){}
+}
+
+/* ---------- jogo ---------- */
+function embaralhar(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+
+function novoJogo(){
+  board.innerHTML=''; primeira=null; travado=false; pares=0; paresEl.textContent=0;
+  win.classList.remove('show');
+  const cartas=embaralhar([...ANIMAIS,...ANIMAIS]);
+  cartas.forEach(([emoji,nome])=>{
+    const c=document.createElement('button');
+    c.className='card'; c.dataset.nome=nome; c.setAttribute('aria-label','carta');
+    c.innerHTML=`<div class="inner"><div class="side back">?</div><div class="side face">${emoji}</div></div>`;
+    c.addEventListener('click',()=>virar(c));
+    board.appendChild(c);
+  });
+}
+
+function virar(c){
+  if(travado || c.classList.contains('flip') || c.classList.contains('done')) return;
+  c.classList.add('flip'); tom([520],.1,'triangle'); falar(c.dataset.nome);
+  if(!primeira){ primeira=c; return; }
+  const a=primeira, b=c; primeira=null;
+  if(a.dataset.nome===b.dataset.nome){
+    setTimeout(()=>{
+      a.classList.add('done'); b.classList.add('done');
+      tom([660,880,1040],.12);
+      pares++; paresEl.textContent=pares;
+      if(pares===ANIMAIS.length) setTimeout(vitoria,700);
+    },450);
+  }else{
+    travado=true;
+    setTimeout(()=>{ a.classList.add('miss'); b.classList.add('miss'); tom([300,240],.12,'sine'); },700);
+    setTimeout(()=>{ a.classList.remove('flip','miss'); b.classList.remove('flip','miss'); travado=false; },1300);
+  }
+}
+
+function vitoria(){
+  win.classList.add('show');
+  tom([523,659,784,1047,784,1047],.15,'triangle');
+  setTimeout(()=>falar('Parabéns! Você conseguiu!'),300);
+  const bichos=ANIMAIS.map(a=>a[0]).concat(['⭐','🎈','🎉']);
+  for(let i=0;i<40;i++){
+    const s=document.createElement('div'); s.className='confetti';
+    s.textContent=bichos[i%bichos.length];
+    s.style.left=Math.random()*100+'vw';
+    s.style.animationDuration=(2.5+Math.random()*2.5)+'s';
+    s.style.animationDelay=(Math.random()*1.2)+'s';
+    document.body.appendChild(s); setTimeout(()=>s.remove(),6000);
+  }
+}
+
+document.getElementById('novo').onclick=novoJogo;
+document.getElementById('denovo').onclick=novoJogo;
+document.getElementById('som').onclick=e=>{
+  somLigado=!somLigado; e.currentTarget.textContent=somLigado?'🔊':'🔇';
+  if(!somLigado && 'speechSynthesis' in window) speechSynthesis.cancel();
+};
+if('speechSynthesis' in window) speechSynthesis.onvoiceschanged=()=>{};
+novoJogo();
+</script>
+</body>
+</html>
